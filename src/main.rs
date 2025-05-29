@@ -8,8 +8,10 @@ fn main() {
     let display_size = display_adapter.get_size();
     let mut buffer: Vec<u32> = vec![0; display_size.0 * display_size.1];
 
-    for i in buffer.iter_mut() {
-        *i = 0xff0000;
+    let mut color = 0x000000;
+    for (i, pixel) in buffer.iter_mut().enumerate() {
+        *pixel = color;
+        color += u32::try_from(i).unwrap() * 10
     }
 
     while display_adapter.is_open() {
