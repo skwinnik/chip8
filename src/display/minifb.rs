@@ -63,7 +63,7 @@ impl MinifbDisplay {
     }
 }
 
-impl crate::display::DisplayAdapter for MinifbDisplay {
+impl crate::display::Display for MinifbDisplay {
     fn new() -> Self {
         let window_result = Window::new(
             TITLE,

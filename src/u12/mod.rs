@@ -7,6 +7,14 @@ const MIN: usize = 0x000;
 const MAX: usize = 0xFFF;
 
 impl U12 {
+    pub fn size() -> usize {
+        MAX + 1
+    }
+
+    pub fn to_usize(&self) -> usize {
+        self.0
+    }
+
     pub fn from_usize(x: usize) -> Self {
         if x < MIN || x > MAX {
             panic!("usize out of u12 range")
@@ -57,6 +65,11 @@ macro_rules! u12 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn to_usize() {
+        assert_eq!(U12::from_usize(10).to_usize(), 10);
+    }
 
     #[test]
     fn from_usize() {
