@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct U12(usize);
 
 use std::{fmt::Display, ops::Add};
@@ -29,6 +29,10 @@ impl U12 {
             _ => None,
         }
     }
+
+    pub fn overflowing_add(self, rhs: Self) -> Self {
+        U12::from_usize((self.0 + rhs.0) % (MAX + 1))
+    }
 }
 
 impl Add for U12 {
@@ -39,12 +43,6 @@ impl Add for U12 {
             Some(result) => result,
             _ => panic!("arithmetic overflow"),
         }
-    }
-}
-
-impl PartialEq for U12 {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
     }
 }
 
@@ -92,5 +90,11 @@ mod tests {
     #[should_panic]
     fn checked_add_panic() {
         U12::checked_add(u12![4], u12![4096]);
+    }
+
+    #[test]
+    fn overflowing_add() {
+        assert_eq!(U12::overflowing_add(u12![4095], u12![1]), u12![0]);
+        assert_eq!(U12::overflowing_add(u12![4095], u12![3]), u12![2]);
     }
 }

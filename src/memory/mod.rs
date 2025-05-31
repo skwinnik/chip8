@@ -7,15 +7,15 @@ pub struct Memory {
 impl Memory {
     pub fn new() -> Self {
         Memory {
-            mem: Vec::with_capacity(U12::size()),
+            mem: vec![0; U12::size()],
         }
     }
 
-    fn read(&self, addr: U12) -> u8 {
+    pub fn read(&self, addr: U12) -> u8 {
         self.mem[addr.to_usize()]
     }
 
-    fn write(&mut self, addr: U12, val: u8) {
+    pub fn write(&mut self, addr: U12, val: u8) {
         self.mem[addr.to_usize()] = val;
     }
 }
