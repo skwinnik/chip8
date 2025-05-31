@@ -1,4 +1,7 @@
+mod cpu;
 mod display;
+mod memory;
+mod u12;
 
 use crate::display::{get_display_adapter, DisplayAdapter};
 
