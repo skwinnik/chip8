@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 minifb = "0.28"
+twelve_bit = "0.1"
+
+[dev-dependencies]
+rstest = "~0.16.0"

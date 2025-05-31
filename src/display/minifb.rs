@@ -5,6 +5,9 @@ static WIDTH: usize = 64;
 static HEIGHT: usize = 32;
 static SCALING_FACTOR: usize = 32;
 
+static PIXEL_ON: u32 = 0x00ff00;
+static PIXEL_OFF: u32 = 0x000000;
+
 pub struct MinifbDisplay {
     window: Window,
 
@@ -13,7 +16,7 @@ pub struct MinifbDisplay {
 }
 
 impl MinifbDisplay {
-    fn get_scaled_buffer(&self, buffer: Vec<u32>) -> Vec<u32> {
+    fn get_scaled_buffer(&self, buffer: Vec<bool>) -> Vec<u32> {
         let mut scaled_buffer: Vec<u32> =
             vec![0; self.width * SCALING_FACTOR * self.height * SCALING_FACTOR];
 
@@ -27,7 +30,8 @@ impl MinifbDisplay {
                         let scaled_x = x * SCALING_FACTOR + dx;
                         let scaled_y = y * SCALING_FACTOR + dy;
                         let scaled_index = scaled_y * (self.width * SCALING_FACTOR) + scaled_x;
-                        scaled_buffer[scaled_index] = original_pixel;
+                        scaled_buffer[scaled_index] =
+                            if original_pixel { PIXEL_ON } else { PIXEL_OFF };
                     }
                 }
             }
@@ -74,8 +78,7 @@ impl crate::display::Display for MinifbDisplay {
             },
         );
         match window_result {
-            Ok(mut window) => {
-                window.set_target_fps(60);
+            Ok(window) => {
                 window.topmost(true);
 
                 MinifbDisplay {
@@ -88,7 +91,7 @@ impl crate::display::Display for MinifbDisplay {
         }
     }
 
-    fn update(&mut self, buffer: &mut Vec<u32>) {
+    fn update(&mut self, buffer: &mut Vec<bool>) {
         let mut scaled_buffer = self.get_scaled_buffer(buffer.to_vec());
         self.set_grid(&mut scaled_buffer);
         let result = self.window.update_with_buffer(

@@ -1,23 +1,31 @@
+mod decode;
+mod execute;
+mod fetch;
+mod instruction;
+mod load;
 use std::{thread::sleep, time::Duration};
 
-use crate::{
-    display::{minifb::MinifbDisplay, Display},
-    memory::Memory,
-    u12::U12,
-};
-
-const PROGRAM_START_ADDR: usize = 0x200;
+use crate::display::{minifb::MinifbDisplay, Display};
+use twelve_bit::u12::*;
 
 pub struct Chip8<D>
 where
     D: Display,
 {
+    /// Display adapter specific to current environment
     display: D,
-    memory: Memory,
 
+    /// Main memory vector
+    memory: Vec<u8>,
+
+    // Program counter
     pc: U12,
 
-    display_buffer: Vec<u32>,
+    v_reg: Vec<u8>,
+    i_reg: u16,
+
+    /// Display buffer, draws every cycle
+    display_buffer: Vec<bool>,
 }
 
 impl<D> Chip8<D>
@@ -29,66 +37,41 @@ where
 
         Chip8 {
             display: display,
-            memory: Memory::new(),
+            memory: vec![0; Into::<usize>::into(U12::max_value()) + 1],
 
-            pc: U12::from_usize(PROGRAM_START_ADDR),
+            pc: u12![0],
+            v_reg: vec![0; 16],
+            i_reg: 0,
 
-            display_buffer: vec![0; display_size.0 * display_size.1],
+            display_buffer: vec![false; display_size.0 * display_size.1],
         }
     }
 
     pub fn run(&mut self) {
         while self.display.is_open() {
-            let instruction = self.fetch();
-            println!("{:#x}", instruction);
+            let code = self.fetch();
+            let instruction = self.decode(code);
 
-            self.decode();
-            self.execute();
+            match instruction {
+                Ok(instruction) => self.execute(instruction),
+                Err(e) => println!("Error: {}", e),
+            }
+
+            self.render_buffer();
             self.sleep();
         }
-    }
-
-    pub fn load(&mut self, program: Vec<u8>) {
-        for (i, byte) in program.iter().enumerate() {
-            self.memory.write(
-                U12::from_usize(PROGRAM_START_ADDR) + U12::from_usize(i),
-                *byte,
-            );
-        }
-
-        self.pc = U12::from_usize(PROGRAM_START_ADDR);
-    }
-
-    fn fetch(&mut self) -> u16 {
-        let i_1 = self.memory.read(self.pc) as u16;
-        self.inc_pc(1);
-
-        let i_2 = self.memory.read(self.pc) as u16;
-        self.inc_pc(1);
-
-        (i_1 << 8) | i_2
-    }
-
-    fn decode(&self) {}
-
-    fn execute(&mut self) {
-        self.render_buffer();
     }
 
     fn render_buffer(&mut self) {
         self.display.update(&mut self.display_buffer);
     }
 
-    fn inc_pc(&mut self, x: usize) {
-        self.pc = self.pc.overflowing_add(U12::from_usize(x));
-
-        if self.pc < U12::from_usize(PROGRAM_START_ADDR) {
-            self.pc = U12::from_usize(PROGRAM_START_ADDR);
-        }
+    fn inc_pc(&mut self, x: u16) {
+        self.pc = self.pc + u12![x];
     }
 
     fn sleep(&self) {
-        sleep(Duration::from_millis(100));
+        sleep(Duration::from_millis(10));
     }
 }
 
