@@ -62,6 +62,30 @@ where
     fn set_display_pixel(display_buffer: &mut Vec<bool>, px_idx: usize, px_val: bool) -> bool {
         let px_old = display_buffer[px_idx];
         display_buffer[px_idx] = px_old ^ px_val;
-        px_old && (px_val ^ px_old)
+        px_old && !display_buffer[px_idx]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::display::test_display::TestDisplay;
+    use rstest::*;
+
+    #[rstest]
+    #[case::set_display_pixel(&mut vec![true], 0, true, true)]
+    #[case::set_display_pixel(&mut vec![false], 0, true, false)]
+    #[case::set_display_pixel(&mut vec![false], 0, false, false)]
+    #[case::set_display_pixel(&mut vec![true], 0, false, false)]
+    fn test_set_display_pixel(
+        #[case] display_buffer: &mut Vec<bool>,
+        #[case] px_idx: usize,
+        #[case] px_val: bool,
+        #[case] expected: bool,
+    ) {
+        assert_eq!(
+            expected,
+            Chip8::<TestDisplay>::set_display_pixel(display_buffer, px_idx, px_val)
+        );
     }
 }
