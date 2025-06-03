@@ -23,22 +23,25 @@ where
                 self.v_reg[x as usize] = self.v_reg[x as usize].saturating_add(nn)
             }
             Chip8Instruction::SetIRegister(nnn) => self.i_reg = nnn,
-            Chip8Instruction::Draw(x_reg, y_reg, n) => {
+            Chip8Instruction::Draw(vx, vy, n) => {
                 let display_size = self.display.get_size();
-                let mut x = (self.v_reg[x_reg as usize] as usize) & (display_size.0 - 1);
-                let mut y = (self.v_reg[y_reg as usize] as usize) & (display_size.1 - 1);
-                self.v_reg[0xF] = 0;
+                let mut y = (self.v_reg[vy as usize] as usize) & (display_size.1 - 1);
+                self.v_reg[0xf] = 0;
 
-                let display_buffer = &mut self.display_buffer;
                 'rows: for i in 0..n {
-                    let b = self.memory[self.i_reg as usize + i as usize];
+                    let mut x = (self.v_reg[vx as usize] as usize) & (display_size.0 - 1);
+
+                    let sprite_byte = self.memory[self.i_reg as usize + i as usize];
                     'cols: for j in 0..8 {
-                        let px = b & (0x1 << (7 - j));
-                        let idx = y * display_size.0 + x;
-                        if Self::set_display_pixel(display_buffer, idx, px != 0) {
+                        let sprite_bit = sprite_byte & (0x1 << (7 - j));
+                        let display_px_inx = y * display_size.0 + x;
+                        if Self::set_display_pixel(
+                            &mut self.display_buffer,
+                            display_px_inx,
+                            sprite_bit != 0,
+                        ) {
                             self.v_reg[0xf] = 1;
                         }
-                        // self.redraw[idx].store(true, Ordering::Release);
 
                         x += 1;
                         if x >= display_size.0 {
@@ -50,16 +53,15 @@ where
                     if y >= display_size.1 {
                         break 'rows;
                     }
-                    x = (self.v_reg[x_reg as usize] as usize) & (display_size.0 - 1);
                 }
             }
         }
     }
 
     #[inline]
-    fn set_display_pixel(display_buffer: &mut Vec<bool>, idx: usize, px: bool) -> bool {
-        let px0 = display_buffer[idx];
-        display_buffer[idx] = px0 ^ px;
-        px0 && (px ^ px0)
+    fn set_display_pixel(display_buffer: &mut Vec<bool>, px_idx: usize, px_val: bool) -> bool {
+        let px_old = display_buffer[px_idx];
+        display_buffer[px_idx] = px_old ^ px_val;
+        px_old && (px_val ^ px_old)
     }
 }
