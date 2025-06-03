@@ -144,4 +144,118 @@ mod tests {
     fn get_test_chip8() -> Chip8<TestDisplay> {
         Chip8::new(TestDisplay::new())
     }
+
+    #[rstest]
+    fn test_draw_instruction() {
+        let mut chip8 = get_test_chip8();
+
+        // Set up sprite data in memory at address 0x300
+        let sprite_data = [
+            0b11110000, // ####....
+            0b10010000, // #..#....
+            0b10010000, // #..#....
+            0b11110000, // ####....
+        ];
+        let sprite_address = 0x300;
+
+        // Load sprite data into memory
+        for (i, &byte) in sprite_data.iter().enumerate() {
+            chip8.memory[sprite_address + i] = byte;
+        }
+
+        // Set I register to point to sprite data
+        chip8.execute(Chip8Instruction::SetIRegister(sprite_address as u16));
+
+        // Set position registers V0=5, V1=10 (x=5, y=10)
+        chip8.execute(Chip8Instruction::SetVRegister(0, 5));
+        chip8.execute(Chip8Instruction::SetVRegister(1, 10));
+
+        // Execute draw instruction: draw 4 bytes from I register at position (V0, V1)
+        chip8.execute(Chip8Instruction::Draw(0, 1, 4));
+
+        // Verify sprite was drawn correctly
+        let display_size = chip8.display.get_size();
+
+        // Check first row of sprite (####....)
+        assert_eq!(chip8.display_buffer[10 * display_size.0 + 5], true); // pixel (5,10)
+        assert_eq!(chip8.display_buffer[10 * display_size.0 + 6], true); // pixel (6,10)
+        assert_eq!(chip8.display_buffer[10 * display_size.0 + 7], true); // pixel (7,10)
+        assert_eq!(chip8.display_buffer[10 * display_size.0 + 8], true); // pixel (8,10)
+        assert_eq!(chip8.display_buffer[10 * display_size.0 + 9], false); // pixel (9,10)
+
+        // Check second row of sprite (#..#....)
+        assert_eq!(chip8.display_buffer[11 * display_size.0 + 5], true); // pixel (5,11)
+        assert_eq!(chip8.display_buffer[11 * display_size.0 + 6], false); // pixel (6,11)
+        assert_eq!(chip8.display_buffer[11 * display_size.0 + 7], false); // pixel (7,11)
+        assert_eq!(chip8.display_buffer[11 * display_size.0 + 8], true); // pixel (8,11)
+
+        // Check that VF (collision flag) is 0 (no collision on clear screen)
+        assert_eq!(chip8.v_reg[0xf], 0);
+    }
+
+    #[rstest]
+    fn test_draw_instruction_with_collision() {
+        let mut chip8 = get_test_chip8();
+
+        // Set up sprite data in memory
+        let sprite_data = [0b11110000]; // ####....
+        let sprite_address = 0x400;
+        chip8.memory[sprite_address] = sprite_data[0];
+
+        // Pre-fill some pixels at the draw location to test collision
+        let display_size = chip8.display.get_size();
+        chip8.display_buffer[5 * display_size.0 + 3] = true; // pixel (3,5)
+        chip8.display_buffer[5 * display_size.0 + 4] = true; // pixel (4,5)
+
+        // Set I register and position
+        chip8.execute(Chip8Instruction::SetIRegister(sprite_address as u16));
+        chip8.execute(Chip8Instruction::SetVRegister(0, 3)); // x=3
+        chip8.execute(Chip8Instruction::SetVRegister(1, 5)); // y=5
+
+        // Execute draw instruction
+        chip8.execute(Chip8Instruction::Draw(0, 1, 1));
+
+        // Check collision detection - VF should be 1 because some pixels were turned off
+        assert_eq!(chip8.v_reg[0xf], 1);
+
+        // Check XOR behavior - overlapping pixels should be turned off
+        assert_eq!(chip8.display_buffer[5 * display_size.0 + 3], false); // was on, now off (collision)
+        assert_eq!(chip8.display_buffer[5 * display_size.0 + 4], false); // was on, now off (collision)
+        assert_eq!(chip8.display_buffer[5 * display_size.0 + 5], true); // was off, now on
+        assert_eq!(chip8.display_buffer[5 * display_size.0 + 6], true); // was off, now on
+    }
+
+    #[rstest]
+    fn test_draw_instruction_different_i_register() {
+        let mut chip8 = get_test_chip8();
+
+        // Set up different sprite data at different memory locations
+        chip8.memory[0x200] = 0b10101010; // #.#.#.#.
+        chip8.memory[0x300] = 0b01010101; // .#.#.#.#
+
+        // Test drawing from first location
+        chip8.execute(Chip8Instruction::SetIRegister(0x200));
+        chip8.execute(Chip8Instruction::SetVRegister(0, 0)); // x=0
+        chip8.execute(Chip8Instruction::SetVRegister(1, 0)); // y=0
+        chip8.execute(Chip8Instruction::Draw(0, 1, 1));
+
+        let display_size = chip8.display.get_size();
+
+        // Check pattern from 0x200 (10101010)
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 0], true); // bit 7
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 1], false); // bit 6
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 2], true); // bit 5
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 3], false); // bit 4
+
+        // Clear screen and test drawing from second location
+        chip8.execute(Chip8Instruction::ClearScreen());
+        chip8.execute(Chip8Instruction::SetIRegister(0x300));
+        chip8.execute(Chip8Instruction::Draw(0, 1, 1));
+
+        // Check pattern from 0x300 (01010101)
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 0], false); // bit 7
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 1], true); // bit 6
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 2], false); // bit 5
+        assert_eq!(chip8.display_buffer[0 * display_size.0 + 3], true); // bit 4
+    }
 }
