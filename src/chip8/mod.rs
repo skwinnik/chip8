@@ -54,7 +54,7 @@ where
 
             match instruction {
                 Ok(instruction) => self.execute(instruction),
-                Err(e) => println!("Error: {}", e),
+                Err(e) => panic!("Error: {}", e),
             }
 
             self.render_buffer();
