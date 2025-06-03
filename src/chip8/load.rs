@@ -7,12 +7,20 @@ impl<D> Chip8<D>
 where
     D: Display,
 {
-    pub fn load(&mut self, program: Vec<u8>) {
-        for (i, byte) in program.iter().enumerate() {
-            let addr = PROGRAM_START_ADDR as usize + i;
-            self.memory[addr] = *byte;
-        }
+    pub fn load_rom(&mut self, rom_path: &str) {
+        let program = std::fs::read(rom_path);
+        match program {
+            Ok(program) => {
+                for (i, byte) in program.iter().enumerate() {
+                    let addr = PROGRAM_START_ADDR as usize + i;
+                    self.memory[addr] = *byte;
+                }
 
-        self.pc = u12![PROGRAM_START_ADDR];
+                self.pc = u12![PROGRAM_START_ADDR];
+            }
+            Err(e) => {
+                eprintln!("Failed to read ROM file: {}", e);
+            }
+        }
     }
 }
