@@ -36,7 +36,14 @@ where
             0x5000 => Ok(Chip8Instruction::SkipIfEqualVRegister(x, y)),
             0x6000 => Ok(Chip8Instruction::SetVRegister(x, nn)),
             0x7000 => Ok(Chip8Instruction::AddVRegister(x, nn)),
-            0x8000 => Ok(Chip8Instruction::SetVRegisterFromVRegister(x, y)),
+            0x8000 => match n {
+                0x0 => Ok(Chip8Instruction::SetVRegisterFromVRegister(x, y)),
+                0x1 => Ok(Chip8Instruction::OrVRegister(x, y)),
+                0x2 => Ok(Chip8Instruction::AndVRegister(x, y)),
+                0x3 => Ok(Chip8Instruction::XorVRegister(x, y)),
+                0x4 => Ok(Chip8Instruction::AddVRegisterToVRegister(x, y)),
+                _ => Err(()),
+            },
             0x9000 => Ok(Chip8Instruction::SkipIfNotEqualVRegister(x, y)),
             0xA000 => Ok(Chip8Instruction::SetIRegister(nnn)),
             0xD000 => Ok(Chip8Instruction::Draw(x, y, n)),
@@ -71,9 +78,13 @@ mod tests {
     #[case::set_v_register(0x6123, Chip8Instruction::SetVRegister(1, 0x23))]
     #[case::add_v_register(0x7123, Chip8Instruction::AddVRegister(1, 0x23))]
     #[case::set_v_register_from_v_register(
-        0x8123,
+        0x8120,
         Chip8Instruction::SetVRegisterFromVRegister(1, 2)
     )]
+    #[case::or_v_register(0x8121, Chip8Instruction::OrVRegister(1, 2))]
+    #[case::and_v_register(0x8122, Chip8Instruction::AndVRegister(1, 2))]
+    #[case::xor_v_register(0x8123, Chip8Instruction::XorVRegister(1, 2))]
+    #[case::add_v_register_to_v_register(0x8124, Chip8Instruction::AddVRegisterToVRegister(1, 2))]
     #[case::skip_if_not_equal_v_register(0x9123, Chip8Instruction::SkipIfNotEqualVRegister(1, 2))]
     #[case::set_i_register(0xa123, Chip8Instruction::SetIRegister(0x123))]
     #[case::draw(0xd123, Chip8Instruction::Draw(1, 2, 3))]

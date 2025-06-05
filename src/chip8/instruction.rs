@@ -26,6 +26,14 @@ pub enum Chip8Instruction {
     AddVRegister(u8, u8),
     /// 0x8XY0
     SetVRegisterFromVRegister(u8, u8),
+    /// 0x8XY1
+    OrVRegister(u8, u8),
+    /// 0x8XY2
+    AndVRegister(u8, u8),
+    /// 0x8XY3
+    XorVRegister(u8, u8),
+    /// 0x8XY4
+    AddVRegisterToVRegister(u8, u8),
     /// 0xANNN
     SetIRegister(u16),
     /// 0xDXYN
@@ -45,11 +53,11 @@ impl Display for Chip8Instruction {
             Chip8Instruction::SkipIfNotEqual(v, val) => {
                 write!(f, "skip if v{} != {:02X}", v, val)
             }
-            Chip8Instruction::SkipIfEqualVRegister(v, val) => {
-                write!(f, "skip if v{} == v{}", v, val)
+            Chip8Instruction::SkipIfEqualVRegister(vx, vy) => {
+                write!(f, "skip if v{} == v{}", vx, vy)
             }
-            Chip8Instruction::SkipIfNotEqualVRegister(v, val) => {
-                write!(f, "skip if v{} != v{}", v, val)
+            Chip8Instruction::SkipIfNotEqualVRegister(vx, vy) => {
+                write!(f, "skip if v{} != v{}", vy, vx)
             }
             Chip8Instruction::SetVRegister(v, val) => {
                 write!(f, "set v{} to {:02X}", v, val)
@@ -57,8 +65,20 @@ impl Display for Chip8Instruction {
             Chip8Instruction::AddVRegister(v, val) => {
                 write!(f, "add {:02X} to v{}", val, v)
             }
-            Chip8Instruction::SetVRegisterFromVRegister(v, val) => {
-                write!(f, "set v{} to v{}", v, val)
+            Chip8Instruction::SetVRegisterFromVRegister(vx, vy) => {
+                write!(f, "set v{} to v{}", vx, vy)
+            }
+            Chip8Instruction::OrVRegister(vx, vy) => {
+                write!(f, "or v{} with v{}", vx, vy)
+            }
+            Chip8Instruction::AndVRegister(vx, vy) => {
+                write!(f, "and v{} with v{}", vx, vy)
+            }
+            Chip8Instruction::XorVRegister(vx, vy) => {
+                write!(f, "xor v{} with v{}", vx, vy)
+            }
+            Chip8Instruction::AddVRegisterToVRegister(vx, vy) => {
+                write!(f, "add v{} to v{}", vy, vx)
             }
             Chip8Instruction::SetIRegister(addr) => write!(f, "set i to {:03X}", addr),
             Chip8Instruction::Draw(v, x, y) => write!(f, "draw v{} at ({}, {})", v, x, y),
