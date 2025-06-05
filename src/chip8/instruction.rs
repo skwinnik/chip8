@@ -24,6 +24,8 @@ pub enum Chip8Instruction {
     SetVRegister(u8, u8),
     /// 0x7XNN
     AddVRegister(u8, u8),
+    /// 0x8XY0
+    SetVRegisterFromVRegister(u8, u8),
     /// 0xANNN
     SetIRegister(u16),
     /// 0xDXYN
@@ -54,6 +56,9 @@ impl Display for Chip8Instruction {
             }
             Chip8Instruction::AddVRegister(v, val) => {
                 write!(f, "add {:02X} to v{}", val, v)
+            }
+            Chip8Instruction::SetVRegisterFromVRegister(v, val) => {
+                write!(f, "set v{} to v{}", v, val)
             }
             Chip8Instruction::SetIRegister(addr) => write!(f, "set i to {:03X}", addr),
             Chip8Instruction::Draw(v, x, y) => write!(f, "draw v{} at ({}, {})", v, x, y),

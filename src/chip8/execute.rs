@@ -51,6 +51,9 @@ where
             Chip8Instruction::AddVRegister(x, nn) => {
                 self.v_reg[x as usize] = self.v_reg[x as usize].saturating_add(nn)
             }
+            Chip8Instruction::SetVRegisterFromVRegister(x, y) => {
+                self.v_reg[x as usize] = self.v_reg[y as usize];
+            }
             Chip8Instruction::SetIRegister(nnn) => self.i_reg = nnn,
             Chip8Instruction::Draw(vx, vy, n) => {
                 let display_size = self.display.get_size();
@@ -264,6 +267,30 @@ mod tests {
         let mut chip8 = get_test_chip8();
         chip8.execute(Chip8Instruction::SetVRegister(x, initial_value));
         chip8.execute(Chip8Instruction::AddVRegister(x, nn));
+        assert_eq!(chip8.v_reg[x as usize], expected);
+    }
+
+    #[rstest]
+    #[case::set_v_register_from_v_register(
+        0x1,
+        0x5,
+        0x2,
+        0x12,
+        Chip8Instruction::SetVRegisterFromVRegister(0x1, 0x2),
+        0x12
+    )]
+    fn test_set_v_register_from_v_register(
+        #[case] x: u8,
+        #[case] x_val: u8,
+        #[case] y: u8,
+        #[case] y_val: u8,
+        #[case] instruction: Chip8Instruction,
+        #[case] expected: u8,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.execute(Chip8Instruction::SetVRegister(x, x_val));
+        chip8.execute(Chip8Instruction::SetVRegister(y, y_val));
+        chip8.execute(instruction);
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
 
