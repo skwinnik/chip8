@@ -15,6 +15,38 @@ where
                 self.display_buffer = vec![false; display_size.0 * display_size.1];
             }
             Chip8Instruction::Jump(nnn) => self.pc = nnn,
+            Chip8Instruction::Return() => {
+                let popped = self.stack.pop();
+                if let Some(popped) = popped {
+                    self.pc = popped;
+                } else {
+                    panic!("Stack is empty");
+                }
+            }
+            Chip8Instruction::Call(nnn) => {
+                self.stack.push(self.pc);
+                self.pc = nnn;
+            }
+            Chip8Instruction::SkipIfEqual(x, val) => {
+                if self.v_reg[x as usize] == val {
+                    self.inc_pc(2);
+                }
+            }
+            Chip8Instruction::SkipIfNotEqual(x, val) => {
+                if self.v_reg[x as usize] != val {
+                    self.inc_pc(2);
+                }
+            }
+            Chip8Instruction::SkipIfEqualVRegister(x, y) => {
+                if self.v_reg[x as usize] == self.v_reg[y as usize] {
+                    self.inc_pc(2);
+                }
+            }
+            Chip8Instruction::SkipIfNotEqualVRegister(x, y) => {
+                if self.v_reg[x as usize] != self.v_reg[y as usize] {
+                    self.inc_pc(2);
+                }
+            }
             Chip8Instruction::SetVRegister(x, nn) => self.v_reg[x as usize] = nn,
             Chip8Instruction::AddVRegister(x, nn) => {
                 self.v_reg[x as usize] = self.v_reg[x as usize].saturating_add(nn)
@@ -86,6 +118,128 @@ mod tests {
         let mut chip8 = get_test_chip8();
         chip8.execute(Chip8Instruction::Jump(u12![nnn]));
         assert_eq!(chip8.pc, u12![expected]);
+    }
+
+    #[rstest]
+    fn test_return() {
+        let mut chip8 = get_test_chip8();
+        chip8.stack.push(u12![0x123]);
+        chip8.execute(Chip8Instruction::Return());
+        assert_eq!(chip8.pc, u12![0x123]);
+    }
+
+    #[rstest]
+    fn test_call() {
+        let mut chip8 = get_test_chip8();
+        chip8.execute(Chip8Instruction::Call(u12![0x123]));
+        assert_eq!(chip8.pc, u12![0x123]);
+        assert_eq!(chip8.stack, vec![u12![0x0]]);
+    }
+
+    #[rstest]
+    #[case::skip_if_equal_true(Chip8Instruction::SkipIfEqual(0, 0x12), 0, 0x12, 0x0, 0x2)]
+    #[case::skip_if_equal_false(Chip8Instruction::SkipIfEqual(0, 0x12), 0, 0x13, 0x0, 0x0)]
+    fn test_skip_if_equal(
+        #[case] instruction: Chip8Instruction,
+        #[case] vx: u8,
+        #[case] val: u8,
+        #[case] start_pc: u16,
+        #[case] expected_pc: u16,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.pc = u12![start_pc];
+        chip8.v_reg[vx as usize] = val;
+        chip8.execute(instruction);
+        assert_eq!(u12![expected_pc], chip8.pc);
+    }
+
+    #[rstest]
+    #[case::skip_if_not_equal_true(Chip8Instruction::SkipIfNotEqual(0, 0x12), 0, 0x13, 0x0, 0x2)]
+    #[case::skip_if_not_equal_false(Chip8Instruction::SkipIfNotEqual(0, 0x12), 0, 0x12, 0x0, 0x0)]
+    fn test_skip_if_not_equal(
+        #[case] instruction: Chip8Instruction,
+        #[case] vx: u8,
+        #[case] val: u8,
+        #[case] start_pc: u16,
+        #[case] expected_pc: u16,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.pc = u12![start_pc];
+        chip8.v_reg[vx as usize] = val;
+        chip8.execute(instruction);
+        assert_eq!(u12![expected_pc], chip8.pc);
+    }
+
+    #[rstest]
+    #[case::skip_if_equal_v_register_true(
+        Chip8Instruction::SkipIfEqualVRegister(0, 1),
+        0,
+        0x12,
+        1,
+        0x12,
+        0x0,
+        0x2
+    )]
+    #[case::skip_if_equal_v_register_false(
+        Chip8Instruction::SkipIfEqualVRegister(0, 1),
+        0,
+        0x13,
+        1,
+        0x12,
+        0x0,
+        0x0
+    )]
+    fn test_skip_if_equal_v_register(
+        #[case] instruction: Chip8Instruction,
+        #[case] vx: u8,
+        #[case] vx_val: u8,
+        #[case] vy: u8,
+        #[case] vy_val: u8,
+        #[case] start_pc: u16,
+        #[case] expected_pc: u16,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.pc = u12![start_pc];
+        chip8.v_reg[vx as usize] = vx_val;
+        chip8.v_reg[vy as usize] = vy_val;
+        chip8.execute(instruction);
+        assert_eq!(u12![expected_pc], chip8.pc);
+    }
+
+    #[rstest]
+    #[case::skip_if_not_equal_v_register_true(
+        Chip8Instruction::SkipIfNotEqualVRegister(0, 1),
+        0,
+        0x13,
+        1,
+        0x12,
+        0x0,
+        0x2
+    )]
+    #[case::skip_if_not_equal_v_register_false(
+        Chip8Instruction::SkipIfNotEqualVRegister(0, 1),
+        0,
+        0x12,
+        1,
+        0x12,
+        0x0,
+        0x0
+    )]
+    fn test_skip_if_not_equal_v_register(
+        #[case] instruction: Chip8Instruction,
+        #[case] vx: u8,
+        #[case] vx_val: u8,
+        #[case] vy: u8,
+        #[case] vy_val: u8,
+        #[case] start_pc: u16,
+        #[case] expected_pc: u16,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.pc = u12![start_pc];
+        chip8.v_reg[vx as usize] = vx_val;
+        chip8.v_reg[vy as usize] = vy_val;
+        chip8.execute(instruction);
+        assert_eq!(u12![expected_pc], chip8.pc);
     }
 
     #[rstest]

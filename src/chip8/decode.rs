@@ -26,11 +26,17 @@ where
         match code & 0xf000 {
             0x0000 => match nnn {
                 0x0e0 => Ok(Chip8Instruction::ClearScreen()),
+                0x0ee => Ok(Chip8Instruction::Return()),
                 _ => Err(()),
             },
             0x1000 => Ok(Chip8Instruction::Jump(u12![nnn])),
+            0x2000 => Ok(Chip8Instruction::Call(u12![nnn])),
+            0x3000 => Ok(Chip8Instruction::SkipIfEqual(x, nn)),
+            0x4000 => Ok(Chip8Instruction::SkipIfNotEqual(x, nn)),
+            0x5000 => Ok(Chip8Instruction::SkipIfEqualVRegister(x, y)),
             0x6000 => Ok(Chip8Instruction::SetVRegister(x, nn)),
             0x7000 => Ok(Chip8Instruction::AddVRegister(x, nn)),
+            0x9000 => Ok(Chip8Instruction::SkipIfNotEqualVRegister(x, y)),
             0xA000 => Ok(Chip8Instruction::SetIRegister(nnn)),
             0xD000 => Ok(Chip8Instruction::Draw(x, y, n)),
             _ => Err(()),
@@ -56,8 +62,14 @@ mod tests {
     #[rstest]
     #[case::clear_screen(0x00e0, Chip8Instruction::ClearScreen())]
     #[case::clear_screen(0x1123, Chip8Instruction::Jump(u12![0x123]))]
+    #[case::call_return(0x00ee, Chip8Instruction::Return())]
+    #[case::call(0x2123, Chip8Instruction::Call(u12![0x123]))]
+    #[case::skip_if_equal(0x3123, Chip8Instruction::SkipIfEqual(1, 0x23))]
+    #[case::skip_if_not_equal(0x4123, Chip8Instruction::SkipIfNotEqual(1, 0x23))]
+    #[case::skip_if_equal_v_register(0x5123, Chip8Instruction::SkipIfEqualVRegister(1, 2))]
     #[case::set_v_register(0x6123, Chip8Instruction::SetVRegister(1, 0x23))]
     #[case::add_v_register(0x7123, Chip8Instruction::AddVRegister(1, 0x23))]
+    #[case::skip_if_not_equal_v_register(0x9123, Chip8Instruction::SkipIfNotEqualVRegister(1, 2))]
     #[case::set_i_register(0xa123, Chip8Instruction::SetIRegister(0x123))]
     #[case::draw(0xd123, Chip8Instruction::Draw(1, 2, 3))]
     fn test_decode_success(#[case] input: u16, #[case] expected: Chip8Instruction) {

@@ -21,7 +21,13 @@ where
     // Program counter
     pc: U12,
 
+    /// Stack
+    stack: Vec<U12>,
+
+    /// V registers
     v_reg: Vec<u8>,
+
+    /// I register
     i_reg: u16,
 
     /// Display buffer, draws every cycle
@@ -42,6 +48,7 @@ where
             pc: u12![0],
             v_reg: vec![0; 16],
             i_reg: 0,
+            stack: vec![],
 
             display_buffer: vec![false; display_size.0 * display_size.1],
         }
