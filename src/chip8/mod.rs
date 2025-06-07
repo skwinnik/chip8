@@ -1,3 +1,4 @@
+pub mod compat;
 mod decode;
 mod execute;
 mod fetch;
@@ -5,7 +6,10 @@ mod instruction;
 mod load;
 use std::{thread::sleep, time::Duration};
 
-use crate::display::{minifb::MinifbDisplay, Display};
+use crate::{
+    chip8::compat::Compatibility,
+    display::{minifb::MinifbDisplay, Display},
+};
 use twelve_bit::u12::*;
 
 pub struct Chip8<D>
@@ -32,13 +36,16 @@ where
 
     /// Display buffer, draws every cycle
     display_buffer: Vec<bool>,
+
+    /// Compatibility mode
+    compatibility: Compatibility,
 }
 
 impl<D> Chip8<D>
 where
     D: Display,
 {
-    pub fn new(display: D) -> Self {
+    pub fn new(display: D, compatibility: Compatibility) -> Self {
         let display_size = display.get_size();
 
         Chip8 {
@@ -51,6 +58,8 @@ where
             stack: vec![],
 
             display_buffer: vec![false; display_size.0 * display_size.1],
+
+            compatibility,
         }
     }
 
@@ -83,6 +92,6 @@ where
 }
 
 type Chip8Macos = Chip8<MinifbDisplay>;
-pub fn get_chip8_macos() -> Chip8Macos {
-    Chip8::new(MinifbDisplay::new())
+pub fn get_chip8_macos(compatibility: Compatibility) -> Chip8Macos {
+    Chip8::new(MinifbDisplay::new(), compatibility)
 }

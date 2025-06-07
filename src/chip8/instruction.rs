@@ -38,10 +38,18 @@ pub enum Chip8Instruction {
     /// Set VX to VX - VY
     /// If the minuend (the first operand) is larger than the subtrahend (second operand), VF will be set to 1. If the subtrahend is larger, and we “underflow” the result, VF is set to 0
     SubVYFromVX(u8, u8),
+    /// 0x8XY6
+    /// COSMAC: Set VX to VY & 0x0F
+    /// Chip48: Set VX to VX & 0x0F
+    ShiftVXRight(u8, u8),
     /// 0x8XY7
     /// Set VX to VY - VX
     /// If the minuend (the first operand) is larger than the subtrahend (second operand), VF will be set to 1. If the subtrahend is larger, and we “underflow” the result, VF is set to 0
     SubVXFromVY(u8, u8),
+    /// 0x8XYE
+    /// COSMAC: Set VX to VY << 1
+    /// Chip48: Set VX to VX >> 1
+    ShiftVXLeft(u8, u8),
     /// 0xANNN
     SetIRegister(u16),
     /// 0xDXYN
@@ -51,51 +59,61 @@ pub enum Chip8Instruction {
 impl Display for Chip8Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Chip8Instruction::ClearScreen() => write!(f, "Clear Screen"),
-            Chip8Instruction::Jump(addr) => write!(f, "jmp {}", u16::from(*addr)),
-            Chip8Instruction::Return() => write!(f, "ret"),
-            Chip8Instruction::Call(addr) => write!(f, "call {}", u16::from(*addr)),
+            Chip8Instruction::ClearScreen() => write!(f, "0x00E0 - Clear Screen"),
+            Chip8Instruction::Jump(addr) => {
+                write!(f, "0x1NNN - Jump to address {}", u16::from(*addr))
+            }
+            Chip8Instruction::Return() => write!(f, "0x00EE - Return from subroutine"),
+            Chip8Instruction::Call(addr) => write!(
+                f,
+                "0x2NNN - Call subroutine at address {}",
+                u16::from(*addr)
+            ),
             Chip8Instruction::SkipIfEqual(v, val) => {
-                write!(f, "skip if v{} == {:02X}", v, val)
+                write!(f, "0x3XNN - Skip if v{} == {:02X}", v, val)
             }
             Chip8Instruction::SkipIfNotEqual(v, val) => {
-                write!(f, "skip if v{} != {:02X}", v, val)
+                write!(f, "0x4XNN - Skip if v{} != {:02X}", v, val)
             }
             Chip8Instruction::SkipIfEqualXY(vx, vy) => {
-                write!(f, "skip if v{} == v{}", vx, vy)
+                write!(f, "0x5XY0 - Skip if v{} == v{}", vx, vy)
             }
             Chip8Instruction::SkipIfNotEqualXY(vx, vy) => {
-                write!(f, "skip if v{} != v{}", vy, vx)
+                write!(f, "0x9XY0 - Skip if v{} != v{}", vy, vx)
             }
             Chip8Instruction::SetVX(v, val) => {
-                write!(f, "set v{} to {:02X}", v, val)
+                write!(f, "0x6XNN - Set v{} to {:02X}", v, val)
             }
             Chip8Instruction::AddVX(v, val) => {
-                write!(f, "add {:02X} to v{}", val, v)
+                write!(f, "0x7XNN - Add {:02X} to v{}", val, v)
             }
             Chip8Instruction::SetVXToVY(vx, vy) => {
-                write!(f, "set v{} to v{}", vx, vy)
+                write!(f, "0x8XY0 - Set v{} to v{}", vx, vy)
             }
             Chip8Instruction::OrVXVY(vx, vy) => {
-                write!(f, "or v{} with v{}", vx, vy)
+                write!(f, "0x8XY1 - Or v{} with v{}", vx, vy)
             }
             Chip8Instruction::AndVXVY(vx, vy) => {
-                write!(f, "and v{} with v{}", vx, vy)
+                write!(f, "0x8XY2 - And v{} with v{}", vx, vy)
             }
             Chip8Instruction::XorVXVY(vx, vy) => {
-                write!(f, "xor v{} with v{}", vx, vy)
+                write!(f, "0x8XY3 - Xor v{} with v{}", vx, vy)
             }
             Chip8Instruction::AddVYRegisterToVX(vx, vy) => {
-                write!(f, "add v{} to v{}", vy, vx)
+                write!(f, "0x8XY4 - Add v{} to v{}", vy, vx)
             }
             Chip8Instruction::SubVYFromVX(vx, vy) => {
-                write!(f, "sub v{} from v{}", vy, vx)
+                write!(f, "0x8XY5 - Sub v{} from v{}", vy, vx)
             }
             Chip8Instruction::SubVXFromVY(vx, vy) => {
-                write!(f, "sub v{} from v{}", vx, vy)
+                write!(f, "0x8XY7 - Sub v{} from v{}", vx, vy)
             }
-            Chip8Instruction::SetIRegister(addr) => write!(f, "set i to {:03X}", addr),
-            Chip8Instruction::Draw(v, x, y) => write!(f, "draw v{} at ({}, {})", v, x, y),
+            Chip8Instruction::ShiftVXRight(x, y) => {
+                write!(f, "0x8XY6 - Shift v{}, v{} right", x, y)
+            }
+            Chip8Instruction::ShiftVXLeft(x, y) => write!(f, "0x8XYE - Shift v{}, v{} left", x, y),
+            Chip8Instruction::SetIRegister(addr) => write!(f, "0xANNN - Set i to {:03X}", addr),
+            Chip8Instruction::Draw(v, x, y) => write!(f, "0xDXYN - Draw v{} at ({}, {})", v, x, y),
         }
     }
 }

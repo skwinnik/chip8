@@ -1,5 +1,5 @@
 use crate::{
-    chip8::{instruction::Chip8Instruction, Chip8},
+    chip8::{compat::Compatibility, instruction::Chip8Instruction, Chip8},
     display::Display,
 };
 
@@ -84,6 +84,26 @@ where
                 self.v_reg[x as usize] = result;
                 self.v_reg[0xf] = !overflow as u8;
             }
+            Chip8Instruction::ShiftVXRight(x, y) => match self.compatibility {
+                Compatibility::Cosmac => {
+                    self.v_reg[0xf] = self.v_reg[y as usize] & 0x1;
+                    self.v_reg[x as usize] = self.v_reg[y as usize] >> 1;
+                }
+                Compatibility::Chip48 => {
+                    self.v_reg[0xf] = self.v_reg[x as usize] & 0x1;
+                    self.v_reg[x as usize] = self.v_reg[x as usize] >> 1;
+                }
+            },
+            Chip8Instruction::ShiftVXLeft(x, y) => match self.compatibility {
+                Compatibility::Cosmac => {
+                    self.v_reg[0xf] = (self.v_reg[y as usize] & 0x80) >> 7;
+                    self.v_reg[x as usize] = self.v_reg[y as usize] << 1;
+                }
+                Compatibility::Chip48 => {
+                    self.v_reg[0xf] = (self.v_reg[x as usize] & 0x80) >> 7;
+                    self.v_reg[x as usize] = self.v_reg[x as usize] << 1;
+                }
+            },
             Chip8Instruction::SetIRegister(nnn) => self.i_reg = nnn,
             Chip8Instruction::Draw(vx, vy, n) => {
                 let display_size = self.display.get_size();
@@ -131,13 +151,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display::test_display::TestDisplay;
+    use crate::{chip8::compat::Compatibility, display::test_display::TestDisplay};
     use rstest::*;
     use twelve_bit::u12::*;
 
     #[rstest]
     fn test_clear_screen() {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.display_buffer = vec![true; 64 * 32];
 
         chip8.execute(Chip8Instruction::ClearScreen());
@@ -148,14 +168,14 @@ mod tests {
     #[rstest]
     #[case::jump(0x123, 0x123)]
     fn test_jump(#[case] nnn: u16, #[case] expected: u16) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::Jump(u12![nnn]));
         assert_eq!(chip8.pc, u12![expected]);
     }
 
     #[rstest]
     fn test_return() {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.stack.push(u12![0x123]);
         chip8.execute(Chip8Instruction::Return());
         assert_eq!(chip8.pc, u12![0x123]);
@@ -163,7 +183,7 @@ mod tests {
 
     #[rstest]
     fn test_call() {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::Call(u12![0x123]));
         assert_eq!(chip8.pc, u12![0x123]);
         assert_eq!(chip8.stack, vec![u12![0x0]]);
@@ -179,7 +199,7 @@ mod tests {
         #[case] start_pc: u16,
         #[case] expected_pc: u16,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.pc = u12![start_pc];
         chip8.v_reg[vx as usize] = val;
         chip8.execute(instruction);
@@ -196,7 +216,7 @@ mod tests {
         #[case] start_pc: u16,
         #[case] expected_pc: u16,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.pc = u12![start_pc];
         chip8.v_reg[vx as usize] = val;
         chip8.execute(instruction);
@@ -231,7 +251,7 @@ mod tests {
         #[case] start_pc: u16,
         #[case] expected_pc: u16,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.pc = u12![start_pc];
         chip8.v_reg[vx as usize] = vx_val;
         chip8.v_reg[vy as usize] = vy_val;
@@ -267,7 +287,7 @@ mod tests {
         #[case] start_pc: u16,
         #[case] expected_pc: u16,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.pc = u12![start_pc];
         chip8.v_reg[vx as usize] = vx_val;
         chip8.v_reg[vy as usize] = vy_val;
@@ -278,7 +298,7 @@ mod tests {
     #[rstest]
     #[case::set_v_register(0x1, 0x12, 0x12)]
     fn test_set_v_register(#[case] x: u8, #[case] nn: u8, #[case] expected: u8) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, nn));
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
@@ -294,7 +314,7 @@ mod tests {
         #[case] nn: u8,
         #[case] expected: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, initial_value));
         chip8.execute(Chip8Instruction::AddVX(x, nn));
         assert_eq!(chip8.v_reg[x as usize], expected);
@@ -317,7 +337,7 @@ mod tests {
         #[case] instruction: Chip8Instruction,
         #[case] expected: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(instruction);
@@ -333,7 +353,7 @@ mod tests {
         #[case] y_val: u8,
         #[case] expected: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::OrVXVY(x, y));
@@ -349,7 +369,7 @@ mod tests {
         #[case] y_val: u8,
         #[case] expected: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::AndVXVY(x, y));
@@ -365,7 +385,7 @@ mod tests {
         #[case] y_val: u8,
         #[case] expected: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::XorVXVY(x, y));
@@ -383,7 +403,7 @@ mod tests {
         #[case] expected: u8,
         #[case] vf: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::AddVYRegisterToVX(x, y));
@@ -402,7 +422,7 @@ mod tests {
         #[case] expected: u8,
         #[case] vf: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::SubVYFromVX(x, y));
@@ -421,7 +441,7 @@ mod tests {
         #[case] expected: u8,
         #[case] vf: u8,
     ) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::SubVXFromVY(x, y));
@@ -430,9 +450,53 @@ mod tests {
     }
 
     #[rstest]
+    #[case::cosmac(Compatibility::Cosmac, 0x1, 0x12, 0x2, 0x6, 0x3, 0x0)]
+    #[case::cosmac_overflow(Compatibility::Cosmac, 0x1, 0x12, 0x2, 0x7, 0x3, 0x1)]
+    #[case::chip48(Compatibility::Chip48, 0x1, 0x12, 0x2, 0x6, 0x9, 0x0)]
+    #[case::chip48_overflow(Compatibility::Chip48, 0x1, 0x13, 0x2, 0x6, 0x9, 0x1)]
+    fn test_shift_vx_right(
+        #[case] compatibility: Compatibility,
+        #[case] x: u8,
+        #[case] x_val: u8,
+        #[case] y: u8,
+        #[case] y_val: u8,
+        #[case] x_expected: u8,
+        #[case] vf_expected: u8,
+    ) {
+        let mut chip8 = get_test_chip8(Some(compatibility));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::ShiftVXRight(x, y));
+        assert_eq!(chip8.v_reg[x as usize], x_expected);
+        assert_eq!(chip8.v_reg[0xf], vf_expected);
+    }
+
+    #[rstest]
+    #[case::cosmac(Compatibility::Cosmac, 0x1, 0x12, 0x2, 0x7, 0xE, 0x0)]
+    #[case::cosmac_overflow(Compatibility::Cosmac, 0x1, 0x12, 0x2, 0x81, 0x2, 0x1)]
+    #[case::chip48(Compatibility::Chip48, 0x1, 0x12, 0x2, 0x7, 0x24, 0x0)]
+    #[case::chip48_overflow(Compatibility::Chip48, 0x1, 0x81, 0x2, 0x7, 0x2, 0x1)]
+    fn test_shift_vx_left(
+        #[case] compatibility: Compatibility,
+        #[case] x: u8,
+        #[case] x_val: u8,
+        #[case] y: u8,
+        #[case] y_val: u8,
+        #[case] x_expected: u8,
+        #[case] vf_expected: u8,
+    ) {
+        let mut chip8 = get_test_chip8(Some(compatibility));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::ShiftVXLeft(x, y));
+        assert_eq!(chip8.v_reg[x as usize], x_expected);
+        assert_eq!(chip8.v_reg[0xf], vf_expected);
+    }
+
+    #[rstest]
     #[case::set_i_register(0x123, 0x123)]
     fn test_set_i_register(#[case] nnn: u16, #[case] expected: u16) {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
         chip8.execute(Chip8Instruction::SetIRegister(nnn));
         assert_eq!(expected, chip8.i_reg);
     }
@@ -457,13 +521,14 @@ mod tests {
         assert_eq!(expected_px_value, display_buffer[px_idx]);
     }
 
-    fn get_test_chip8() -> Chip8<TestDisplay> {
-        Chip8::new(TestDisplay::new())
+    fn get_test_chip8(compatibility: Option<Compatibility>) -> Chip8<TestDisplay> {
+        let compat = compatibility.unwrap_or(Compatibility::Cosmac);
+        Chip8::new(TestDisplay::new(), compat)
     }
 
     #[rstest]
     fn test_draw_instruction() {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
 
         // Set up sprite data in memory at address 0x300
         let sprite_data = [
@@ -511,7 +576,7 @@ mod tests {
 
     #[rstest]
     fn test_draw_instruction_with_collision() {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
 
         // Set up sprite data in memory
         let sprite_data = [0b11110000]; // ####....
@@ -543,7 +608,7 @@ mod tests {
 
     #[rstest]
     fn test_draw_instruction_different_i_register() {
-        let mut chip8 = get_test_chip8();
+        let mut chip8 = get_test_chip8(None);
 
         // Set up different sprite data at different memory locations
         chip8.memory[0x200] = 0b10101010; // #.#.#.#.

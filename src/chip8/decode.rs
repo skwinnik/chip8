@@ -43,7 +43,9 @@ where
                 0x3 => Ok(Chip8Instruction::XorVXVY(x, y)),
                 0x4 => Ok(Chip8Instruction::AddVYRegisterToVX(x, y)),
                 0x5 => Ok(Chip8Instruction::SubVYFromVX(x, y)),
+                0x6 => Ok(Chip8Instruction::ShiftVXRight(x, y)),
                 0x7 => Ok(Chip8Instruction::SubVXFromVY(x, y)),
+                0xE => Ok(Chip8Instruction::ShiftVXLeft(x, y)),
                 _ => Err(()),
             },
             0x9000 => Ok(Chip8Instruction::SkipIfNotEqualXY(x, y)),
@@ -65,7 +67,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::display::test_display::TestDisplay;
+    use crate::{chip8::compat::Compatibility, display::test_display::TestDisplay};
 
     use super::*;
     use rstest::*;
@@ -86,6 +88,8 @@ mod tests {
     #[case::and_vx_vy(0x8122, Chip8Instruction::AndVXVY(1, 2))]
     #[case::xor_vx_vy(0x8123, Chip8Instruction::XorVXVY(1, 2))]
     #[case::add_vy_to_vx(0x8124, Chip8Instruction::AddVYRegisterToVX(1, 2))]
+    #[case::shift_vx_right(0x8126, Chip8Instruction::ShiftVXRight(1, 2))]
+    #[case::shift_vx_left(0x812E, Chip8Instruction::ShiftVXLeft(1, 2))]
     #[case::set_i_register(0xa123, Chip8Instruction::SetIRegister(0x123))]
     #[case::draw(0xd123, Chip8Instruction::Draw(1, 2, 3))]
     fn test_decode_success(#[case] input: u16, #[case] expected: Chip8Instruction) {
@@ -94,6 +98,6 @@ mod tests {
     }
 
     fn get_test_chip8() -> Chip8<TestDisplay> {
-        Chip8::new(TestDisplay::new())
+        Chip8::new(TestDisplay::new(), Compatibility::Cosmac)
     }
 }
