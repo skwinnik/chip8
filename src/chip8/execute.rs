@@ -37,34 +37,34 @@ where
                     self.inc_pc(2);
                 }
             }
-            Chip8Instruction::SkipIfEqualVRegister(x, y) => {
+            Chip8Instruction::SkipIfEqualXY(x, y) => {
                 if self.v_reg[x as usize] == self.v_reg[y as usize] {
                     self.inc_pc(2);
                 }
             }
-            Chip8Instruction::SkipIfNotEqualVRegister(x, y) => {
+            Chip8Instruction::SkipIfNotEqualXY(x, y) => {
                 if self.v_reg[x as usize] != self.v_reg[y as usize] {
                     self.inc_pc(2);
                 }
             }
-            Chip8Instruction::SetVRegister(x, nn) => self.v_reg[x as usize] = nn,
-            Chip8Instruction::AddVRegister(x, nn) => {
+            Chip8Instruction::SetVX(x, nn) => self.v_reg[x as usize] = nn,
+            Chip8Instruction::AddVX(x, nn) => {
                 let (result, _) = self.v_reg[x as usize].overflowing_add(nn);
                 self.v_reg[x as usize] = result;
             }
-            Chip8Instruction::SetVRegisterFromVRegister(x, y) => {
+            Chip8Instruction::SetVXToVY(x, y) => {
                 self.v_reg[x as usize] = self.v_reg[y as usize];
             }
-            Chip8Instruction::OrVRegister(x, y) => {
+            Chip8Instruction::OrVXVY(x, y) => {
                 self.v_reg[x as usize] = self.v_reg[x as usize] | self.v_reg[y as usize];
             }
-            Chip8Instruction::AndVRegister(x, y) => {
+            Chip8Instruction::AndVXVY(x, y) => {
                 self.v_reg[x as usize] = self.v_reg[x as usize] & self.v_reg[y as usize];
             }
-            Chip8Instruction::XorVRegister(x, y) => {
+            Chip8Instruction::XorVXVY(x, y) => {
                 self.v_reg[x as usize] = self.v_reg[x as usize] ^ self.v_reg[y as usize];
             }
-            Chip8Instruction::AddVRegisterToVRegister(x, y) => {
+            Chip8Instruction::AddVYRegisterToVX(x, y) => {
                 let (result, overflow) =
                     self.v_reg[x as usize].overflowing_add(self.v_reg[y as usize]);
                 self.v_reg[x as usize] = result;
@@ -191,7 +191,7 @@ mod tests {
 
     #[rstest]
     #[case::skip_if_equal_v_register_true(
-        Chip8Instruction::SkipIfEqualVRegister(0, 1),
+        Chip8Instruction::SkipIfEqualXY(0, 1),
         0,
         0x12,
         1,
@@ -200,7 +200,7 @@ mod tests {
         0x2
     )]
     #[case::skip_if_equal_v_register_false(
-        Chip8Instruction::SkipIfEqualVRegister(0, 1),
+        Chip8Instruction::SkipIfEqualXY(0, 1),
         0,
         0x13,
         1,
@@ -227,7 +227,7 @@ mod tests {
 
     #[rstest]
     #[case::skip_if_not_equal_v_register_true(
-        Chip8Instruction::SkipIfNotEqualVRegister(0, 1),
+        Chip8Instruction::SkipIfNotEqualXY(0, 1),
         0,
         0x13,
         1,
@@ -236,7 +236,7 @@ mod tests {
         0x2
     )]
     #[case::skip_if_not_equal_v_register_false(
-        Chip8Instruction::SkipIfNotEqualVRegister(0, 1),
+        Chip8Instruction::SkipIfNotEqualXY(0, 1),
         0,
         0x12,
         1,
@@ -265,7 +265,7 @@ mod tests {
     #[case::set_v_register(0x1, 0x12, 0x12)]
     fn test_set_v_register(#[case] x: u8, #[case] nn: u8, #[case] expected: u8) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, nn));
+        chip8.execute(Chip8Instruction::SetVX(x, nn));
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
 
@@ -281,8 +281,8 @@ mod tests {
         #[case] expected: u8,
     ) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, initial_value));
-        chip8.execute(Chip8Instruction::AddVRegister(x, nn));
+        chip8.execute(Chip8Instruction::SetVX(x, initial_value));
+        chip8.execute(Chip8Instruction::AddVX(x, nn));
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
 
@@ -292,7 +292,7 @@ mod tests {
         0x5,
         0x2,
         0x12,
-        Chip8Instruction::SetVRegisterFromVRegister(0x1, 0x2),
+        Chip8Instruction::SetVXToVY(0x1, 0x2),
         0x12
     )]
     fn test_set_v_register_from_v_register(
@@ -304,8 +304,8 @@ mod tests {
         #[case] expected: u8,
     ) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, x_val));
-        chip8.execute(Chip8Instruction::SetVRegister(y, y_val));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(instruction);
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
@@ -320,9 +320,9 @@ mod tests {
         #[case] expected: u8,
     ) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, x_val));
-        chip8.execute(Chip8Instruction::SetVRegister(y, y_val));
-        chip8.execute(Chip8Instruction::OrVRegister(x, y));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::OrVXVY(x, y));
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
 
@@ -336,9 +336,9 @@ mod tests {
         #[case] expected: u8,
     ) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, x_val));
-        chip8.execute(Chip8Instruction::SetVRegister(y, y_val));
-        chip8.execute(Chip8Instruction::AndVRegister(x, y));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::AndVXVY(x, y));
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
 
@@ -352,9 +352,9 @@ mod tests {
         #[case] expected: u8,
     ) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, x_val));
-        chip8.execute(Chip8Instruction::SetVRegister(y, y_val));
-        chip8.execute(Chip8Instruction::XorVRegister(x, y));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::XorVXVY(x, y));
         assert_eq!(chip8.v_reg[x as usize], expected);
     }
 
@@ -370,9 +370,9 @@ mod tests {
         #[case] vf: u8,
     ) {
         let mut chip8 = get_test_chip8();
-        chip8.execute(Chip8Instruction::SetVRegister(x, x_val));
-        chip8.execute(Chip8Instruction::SetVRegister(y, y_val));
-        chip8.execute(Chip8Instruction::AddVRegisterToVRegister(x, y));
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::AddVYRegisterToVX(x, y));
         assert_eq!(chip8.v_reg[x as usize], expected);
         assert_eq!(chip8.v_reg[0xf], vf);
     }
@@ -431,8 +431,8 @@ mod tests {
         chip8.execute(Chip8Instruction::SetIRegister(sprite_address as u16));
 
         // Set position registers V0=5, V1=10 (x=5, y=10)
-        chip8.execute(Chip8Instruction::SetVRegister(0, 5));
-        chip8.execute(Chip8Instruction::SetVRegister(1, 10));
+        chip8.execute(Chip8Instruction::SetVX(0, 5));
+        chip8.execute(Chip8Instruction::SetVX(1, 10));
 
         // Execute draw instruction: draw 4 bytes from I register at position (V0, V1)
         chip8.execute(Chip8Instruction::Draw(0, 1, 4));
@@ -473,8 +473,8 @@ mod tests {
 
         // Set I register and position
         chip8.execute(Chip8Instruction::SetIRegister(sprite_address as u16));
-        chip8.execute(Chip8Instruction::SetVRegister(0, 3)); // x=3
-        chip8.execute(Chip8Instruction::SetVRegister(1, 5)); // y=5
+        chip8.execute(Chip8Instruction::SetVX(0, 3)); // x=3
+        chip8.execute(Chip8Instruction::SetVX(1, 5)); // y=5
 
         // Execute draw instruction
         chip8.execute(Chip8Instruction::Draw(0, 1, 1));
@@ -499,8 +499,8 @@ mod tests {
 
         // Test drawing from first location
         chip8.execute(Chip8Instruction::SetIRegister(0x200));
-        chip8.execute(Chip8Instruction::SetVRegister(0, 0)); // x=0
-        chip8.execute(Chip8Instruction::SetVRegister(1, 0)); // y=0
+        chip8.execute(Chip8Instruction::SetVX(0, 0)); // x=0
+        chip8.execute(Chip8Instruction::SetVX(1, 0)); // y=0
         chip8.execute(Chip8Instruction::Draw(0, 1, 1));
 
         let display_size = chip8.display.get_size();
