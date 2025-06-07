@@ -34,6 +34,14 @@ pub enum Chip8Instruction {
     XorVXVY(u8, u8),
     /// 0x8XY4
     AddVYRegisterToVX(u8, u8),
+    /// 0x8XY5
+    /// Set VX to VX - VY
+    /// If the minuend (the first operand) is larger than the subtrahend (second operand), VF will be set to 1. If the subtrahend is larger, and we “underflow” the result, VF is set to 0
+    SubVYFromVX(u8, u8),
+    /// 0x8XY7
+    /// Set VX to VY - VX
+    /// If the minuend (the first operand) is larger than the subtrahend (second operand), VF will be set to 1. If the subtrahend is larger, and we “underflow” the result, VF is set to 0
+    SubVXFromVY(u8, u8),
     /// 0xANNN
     SetIRegister(u16),
     /// 0xDXYN
@@ -79,6 +87,12 @@ impl Display for Chip8Instruction {
             }
             Chip8Instruction::AddVYRegisterToVX(vx, vy) => {
                 write!(f, "add v{} to v{}", vy, vx)
+            }
+            Chip8Instruction::SubVYFromVX(vx, vy) => {
+                write!(f, "sub v{} from v{}", vy, vx)
+            }
+            Chip8Instruction::SubVXFromVY(vx, vy) => {
+                write!(f, "sub v{} from v{}", vx, vy)
             }
             Chip8Instruction::SetIRegister(addr) => write!(f, "set i to {:03X}", addr),
             Chip8Instruction::Draw(v, x, y) => write!(f, "draw v{} at ({}, {})", v, x, y),

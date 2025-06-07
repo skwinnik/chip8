@@ -42,9 +42,12 @@ where
                 0x2 => Ok(Chip8Instruction::AndVXVY(x, y)),
                 0x3 => Ok(Chip8Instruction::XorVXVY(x, y)),
                 0x4 => Ok(Chip8Instruction::AddVYRegisterToVX(x, y)),
+                0x5 => Ok(Chip8Instruction::SubVYFromVX(x, y)),
+                0x7 => Ok(Chip8Instruction::SubVXFromVY(x, y)),
                 _ => Err(()),
             },
             0x9000 => Ok(Chip8Instruction::SkipIfNotEqualXY(x, y)),
+
             0xA000 => Ok(Chip8Instruction::SetIRegister(nnn)),
             0xD000 => Ok(Chip8Instruction::Draw(x, y, n)),
             _ => Err(()),

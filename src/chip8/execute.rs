@@ -70,6 +70,20 @@ where
                 self.v_reg[x as usize] = result;
                 self.v_reg[0xf] = overflow as u8;
             }
+            Chip8Instruction::SubVYFromVX(x, y) => {
+                self.v_reg[0xf] = 1;
+                let (result, overflow) =
+                    self.v_reg[x as usize].overflowing_sub(self.v_reg[y as usize]);
+                self.v_reg[x as usize] = result;
+                self.v_reg[0xf] = !overflow as u8;
+            }
+            Chip8Instruction::SubVXFromVY(x, y) => {
+                self.v_reg[0xf] = 1;
+                let (result, overflow) =
+                    self.v_reg[y as usize].overflowing_sub(self.v_reg[x as usize]);
+                self.v_reg[x as usize] = result;
+                self.v_reg[0xf] = !overflow as u8;
+            }
             Chip8Instruction::SetIRegister(nnn) => self.i_reg = nnn,
             Chip8Instruction::Draw(vx, vy, n) => {
                 let display_size = self.display.get_size();
@@ -373,6 +387,44 @@ mod tests {
         chip8.execute(Chip8Instruction::SetVX(x, x_val));
         chip8.execute(Chip8Instruction::SetVX(y, y_val));
         chip8.execute(Chip8Instruction::AddVYRegisterToVX(x, y));
+        assert_eq!(chip8.v_reg[x as usize], expected);
+        assert_eq!(chip8.v_reg[0xf], vf);
+    }
+
+    #[rstest]
+    #[case::sub_y_from_x(0x1, 0x5, 0x2, 0x3, 0x2, 0x1)]
+    #[case::sub_y_from_x_underflow(0x1, 0x5, 0x2, 0x8, 0xFD, 0x0)]
+    fn test_sub_y_from_x(
+        #[case] x: u8,
+        #[case] x_val: u8,
+        #[case] y: u8,
+        #[case] y_val: u8,
+        #[case] expected: u8,
+        #[case] vf: u8,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::SubVYFromVX(x, y));
+        assert_eq!(chip8.v_reg[x as usize], expected);
+        assert_eq!(chip8.v_reg[0xf], vf);
+    }
+
+    #[rstest]
+    #[case::sub_x_from_y(0x1, 0x3, 0x2, 0x5, 0x2, 0x1)]
+    #[case::sub_x_from_y_underflow(0x1, 0x3, 0x2, 0x1, 0xFE, 0x0)]
+    fn test_sub_x_from_y(
+        #[case] x: u8,
+        #[case] x_val: u8,
+        #[case] y: u8,
+        #[case] y_val: u8,
+        #[case] expected: u8,
+        #[case] vf: u8,
+    ) {
+        let mut chip8 = get_test_chip8();
+        chip8.execute(Chip8Instruction::SetVX(x, x_val));
+        chip8.execute(Chip8Instruction::SetVX(y, y_val));
+        chip8.execute(Chip8Instruction::SubVXFromVY(x, y));
         assert_eq!(chip8.v_reg[x as usize], expected);
         assert_eq!(chip8.v_reg[0xf], vf);
     }
